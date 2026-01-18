@@ -6,11 +6,11 @@ import { io } from "../server";
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
   const { conversationId, content } = req.body;
-  if(!conversationId || !content || conversationId===""){
-    return res.status(400).json({message:"conversationId and content are required"})
+  if (!conversationId || !content || conversationId === "") {
+    return res.status(400).json({ message: "conversationId and content are required" })
   }
-  if(content===""){
-    return res.status(400).json({message:"Empty content cannot be send"})
+  if (content === "") {
+    return res.status(400).json({ message: "Empty content cannot be send" })
   }
   const senderId = req.user._id;
 
@@ -23,7 +23,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     return res.status(403).json({ message: "Access denied" });
   }
 
- const receiverId = conversation.participants.find(p => !p.equals(senderId));
+  const receiverId = conversation.participants.find(p => !p.equals(senderId));
   if (!receiverId) {
     return res.status(400).json({ message: "Receiver not found" });
   }
@@ -40,9 +40,54 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
 };
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
-  const messages = await Message.find({
-    conversation: req.params.conversationId
-  }).sort({ createdAt: 1 });
+  try {
+    const conversationId = req.params.conversationId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const before = req.query.before ? parseInt(req.query.before as string) : null;
+    const after = req.query.after ? parseInt(req.query.after as string) : null;
+    const skip = (page - 1) * limit;
 
-  res.json(messages);
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+    if (!conversation.participants.some(p => p.equals(req.user._id))) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    let query: any = { conversation: conversationId };
+
+    if (before) {
+      query.createdAt = { $lt: new Date(before) };
+    } else if (after) {
+      query.createdAt = { $gt: new Date(after) };
+    }
+
+    const total = await Message.countDocuments({ conversation: conversationId });
+    const messages = await Message.find(query)
+      .populate("sender", "username email")
+      .populate("receiver", "username email")
+      .sort({ createdAt: before ? -1 : 1 })
+      .skip(skip)
+      .limit(limit);
+
+    if (before) {
+      messages.reverse();
+    }
+
+    res.json({
+      data: messages,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasMore: skip + messages.length < total
+      }
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  }
 };
