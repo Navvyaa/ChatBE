@@ -1,10 +1,21 @@
 import { Server, Socket } from "socket.io";
 import { Message } from "../models/Message";
 import { Conversation } from "../models/Conversation";
+import { User } from "../models/User";
 
 export const registerChatHandlers = (io: Server, socket: Socket) => {
     const userId = socket.data.userId;
     socket.join(userId);
+    User.findByIdAndUpdate(userId, {
+        status: 'ONLINE',
+        lastSeen: new Date()
+    }).then(() => {
+        socket.broadcast.emit("user-status-changed", {
+            userId,
+            status: 'ONLINE',
+            timestamp: Date.now()
+        });
+    });
     socket.on("joinConversation", async ({ conversationId }) => {
         const conversation = await Conversation.findById(conversationId);
 
@@ -27,15 +38,52 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
             socket.leave(socket.data.conversationId);
             socket.data.conversationId = null;
         }
+    });
+
+    socket.on("typing-start", async () => {
+        const conversationId = socket.data.conversationId;
+        if (!conversationId) {
+            socket.emit("error",{message:"Join a conversation first."})
+            return;
+        }
+
+        socket.to(conversationId).emit("user-typing", {
+            conversationId,
+            userId,
+            isTyping: true,
+            timestamp: Date.now()
+        });
+    });
+
+    socket.on("typing-stop", async () => {
+        const conversationId = socket.data.conversationId;
+        if (!conversationId) {
+            socket.emit("error",{message:"Join a conversation first."})
+            return;
+        }
+
+        socket.to(conversationId).emit("user-typing", {
+            conversationId,
+            userId,
+            isTyping: false,
+            timestamp: Date.now()
+        });
     })
 
     socket.on("sendMessage", async ({ content }) => {
         const conversationId = socket.data.conversationId;
 
-        if (!conversationId || !content) {
+        if (!conversationId ) {
             socket.emit("error", {
-                message: "Content is required and you must join a conversation first.",
+                message: "You must join a conversation first.",
             });
+
+            return;
+        }
+        if(!content){
+            socket.emit("error",{
+                message:"Content is required"
+            })
             return;
         }
 
@@ -112,7 +160,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     });
 
     socket.on("joinedMultipleConversations", async ({ conversationIds }) => {
-        if (!conversationIds || Array.isArray(conversationIds)) {
+        if (!conversationIds || !Array.isArray(conversationIds)) {
             socket.emit("error", { message: "conversationIds array required." });
             return;
         }
@@ -131,7 +179,17 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     )
 
 
-    socket.on("disconnect", () => {
-        console.log("user disconnected", userId)
+    socket.on("disconnect", async () => {
+        console.log("user disconnected", userId);
+        await User.findByIdAndUpdate(userId, {
+            status: 'OFFLINE',
+            lastSeen: new Date()
+        });
+        socket.broadcast.emit("user-status-changed", {
+            userId,
+            status: 'OFFLINE',
+            lastSeen: Date.now(),
+            timestamp: Date.now()
+        });
     })
 }

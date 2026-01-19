@@ -1,7 +1,8 @@
-import { Request, Response, NextFunction } from "express";
+import { Request, Response } from "express";
 import { User } from "../models/User";
-import { generateToken } from "../utils/generateToken";
+import { generateToken, generateRefreshToken } from "../utils/generateToken";
 import { isValidEmail, isStrongPassword } from "../utils/validate";
+import jwt from "jsonwebtoken";
 
 export const register = async (req: Request, res: Response) => {
     try {
@@ -13,7 +14,7 @@ export const register = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "All fields are required." })
         }
         if (!isValidEmail(email))
-            return res.status(400).json({message:"Enter a valid email"});
+            return res.status(400).json({ message: "Enter a valid email" });
         if (!isStrongPassword(password))
             return res.status(400).json({ message: "Password must be 8 characters with a lower case, a upper case alphabet ,a special character and a digit" })
         const exists = await User.findOne({ email });
@@ -44,14 +45,56 @@ export const login = async (req: Request, res: Response) => {
         if (!match)
             return res.status(400).json({ message: "Invalid Credentials" });
         // generateToken expects (email: string, id: string)
-        const token = await generateToken(user.email, user._id.toString());
+
+        const accessToken = await generateToken(user.email, user._id.toString());
+        const refreshToken = await generateRefreshToken(user._id.toString());
         return res.json({
             message: "Login successful",
             user: { id: user._id, username: user.username, email: user.email },
-            token: token
+            accessToken: accessToken,
+            refreshToken: refreshToken,
         })
     } catch (err) {
         console.log(err)
         return res.status(500).json({ message: 'Server error' });
+    }
+}
+
+export const refresh = async (req: Request, res: Response) => {
+    try {
+        const refreshToken = req.body.refreshToken;
+        if (!refreshToken) {
+            return res.status(400).json({
+                message: "Refresh token is required."
+            });
+        }
+        let decoded;
+        try {
+            decoded = jwt.verify(
+                refreshToken,
+                process.env.JWT_REFRESH_SECRET as string
+            ) as { id: string };
+        } catch (err) {
+            return res.status(401).json({
+                message: "Invalid or expired refresh token"
+            });
+        }
+
+        const user = await User.findById(decoded.id);
+        if (!user) {
+            return res.status(401).json({
+                message: "Invalid refresh token"
+            });
+        }
+
+        const newAccessToken = await generateToken(user.email, user._id.toString());
+
+        return res.json({
+            accessToken: newAccessToken,
+            expiresIn: 172800
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ message: "Server error" });
     }
 }

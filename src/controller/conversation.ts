@@ -22,6 +22,9 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
             })
         }
 
+        // Populate participants with user details
+        await conversation.populate("participants", "_id username email");
+
         res.json(conversation);
     } catch (err) {
         console.log(err)
@@ -51,7 +54,7 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
 
         const total = await Conversation.countDocuments(query);
         const conversations = await Conversation.find(query)
-            .populate("participants", "username email")
+            .populate("participants", "_id username email")
             .sort({ updatedAt: -1 })
             .skip(skip)
             .limit(limit);
