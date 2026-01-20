@@ -72,6 +72,33 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       .skip(skip)
       .limit(limit);
 
+    const undeliveredMessageIds = messages.filter(m =>
+      m.receiver._id.toString() === req.user._id.toString() && !m.delivered
+    ).map(m=>m._id)
+
+    if (undeliveredMessageIds.length > 0) {
+      const now = new Date();
+      await Message.updateMany(
+        { _id: { $in: undeliveredMessageIds } },
+        {
+          $set: {
+            delivered: true,
+            deliveredAt: now
+          }
+        }
+      );
+
+      undeliveredMessageIds.forEach(msgId => {
+        const msg = messages.find(m => m._id.toString() === msgId.toString());
+        if (msg) {
+          io.to(msg.sender._id.toString()).emit("message-delivered", {
+            messageId: msgId,
+            deliveredAt: now
+          });
+        }
+      });
+    }
+
     if (before) {
       messages.reverse();
     }

@@ -30,6 +30,32 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
 
         socket.data.conversationId = conversationId;
         socket.join(conversationId);
+
+        try {
+            const now = new Date();
+            const result = await Message.updateMany(
+                {
+                    conversation: conversationId,
+                    receiver: userId,
+                    read: false
+                },
+                {
+                    $set: { read: true, readAt: now }
+                }
+            );
+
+            if (result.modifiedCount > 0) {
+                io.to(conversationId).emit("messages-read", {
+                    conversationId,
+                    readBy: userId,
+                    readAt: now,
+                    count: result.modifiedCount
+                });
+            }
+        } catch (err) {
+            console.error("Error marking messages as read on join:", err);
+        }
+
         socket.emit("joined", { conversationId });
     })
 
@@ -43,7 +69,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     socket.on("typing-start", async () => {
         const conversationId = socket.data.conversationId;
         if (!conversationId) {
-            socket.emit("error",{message:"Join a conversation first."})
+            socket.emit("error", { message: "Join a conversation first." })
             return;
         }
 
@@ -58,7 +84,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     socket.on("typing-stop", async () => {
         const conversationId = socket.data.conversationId;
         if (!conversationId) {
-            socket.emit("error",{message:"Join a conversation first."})
+            socket.emit("error", { message: "Join a conversation first." })
             return;
         }
 
@@ -73,16 +99,16 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
     socket.on("sendMessage", async ({ content }) => {
         const conversationId = socket.data.conversationId;
 
-        if (!conversationId ) {
+        if (!conversationId) {
             socket.emit("error", {
                 message: "You must join a conversation first.",
             });
 
             return;
         }
-        if(!content){
-            socket.emit("error",{
-                message:"Content is required"
+        if (!content) {
+            socket.emit("error", {
+                message: "Content is required"
             })
             return;
         }
@@ -124,40 +150,6 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
         }
     });
 
-    socket.on("markAsRead", async ({ messageIds }) => {
-        if (!messageIds || !Array.isArray(messageIds)) {
-            socket.emit("error", { message: "messageIds array required" });
-            return;
-        }
-
-        try {
-            const now = new Date();
-            await Message.updateMany(
-                {
-                    _id: { $in: messageIds },
-                    receiver: userId,
-                    read: false
-                },
-                {
-                    $set: { read: true, readAt: now }
-                }
-            );
-
-            const messages = await Message.find({ _id: { $in: messageIds } });
-            const conversationIds = [...new Set(messages.map(m => m.conversation.toString()))];
-
-            conversationIds.forEach(convId => {
-                io.to(convId).emit("messages-read", {
-                    messageIds,
-                    readAt: now,
-                    readBy: userId
-                });
-            });
-        } catch (err) {
-            console.error("Error marking messages as read:", err);
-            socket.emit("error", { message: "Failed to mark messages as read" });
-        }
-    });
 
     socket.on("joinedMultipleConversations", async ({ conversationIds }) => {
         if (!conversationIds || !Array.isArray(conversationIds)) {
