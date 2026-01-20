@@ -5,14 +5,18 @@ export interface IUser extends Document {
     username: string;
     email: string;
     password: string;
+    status: 'ONLINE' | 'OFFLINE' | 'AWAY';
+    lastSeen: Date;
     comparePassword(candidate: string): Promise<boolean>;
 }
 
 const UserSchema = new Schema<IUser>(
     {
-        username: { type: String, required: true,  trim: true },
+        username: { type: String, required: true, trim: true },
         email: { type: String, required: true, unique: true, trim: true },
-        password: { type: String, required: true, trim: true }
+        password: { type: String, required: true, trim: true },
+        status: { type: String, enum: ['ONLINE', 'OFFLINE', 'AWAY'], default: 'OFFLINE' },
+        lastSeen: { type: Date, default: Date.now }
     },
     { timestamps: true }
 )

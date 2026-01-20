@@ -5,21 +5,27 @@ export interface IMessage extends Document {
     sender: Types.ObjectId;
     receiver: Types.ObjectId;
     content: string;
+    delivered: boolean;
+    deliveredAt: Date;
     read: boolean;
+    readAt: Date;
 }
 
 const messageSchema = new Schema<IMessage>(
     {
-        conversation:{
-            type:Schema.Types.ObjectId,
-            ref:"Conversation",
-            required:true,           
+        conversation: {
+            type: Schema.Types.ObjectId,
+            ref: "Conversation",
+            required: true,
         },
-         sender:{type:Schema.Types.ObjectId,ref:"User",required:true},
-         receiver:{type:Schema.Types.ObjectId,ref:"User",required:true},
-         content:{type:String,required:true},
-         read:{type:Boolean,default:false}
-    },{timestamps:true}
+        sender: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        receiver: { type: Schema.Types.ObjectId, ref: "User", required: true },
+        content: { type: String, required: true },
+        delivered: { type: Boolean, default: false },
+        deliveredAt: { type: Date },
+        read: { type: Boolean, default: false },
+        readAt: { type: Date }
+    }, { timestamps: true }
 )
 
-export const Message= mongoose.model("Message",messageSchema);
+export const Message = mongoose.model("Message", messageSchema);
