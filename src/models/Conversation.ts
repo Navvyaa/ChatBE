@@ -1,19 +1,19 @@
-import mongoose ,{Document,Schema, Types} from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
-export interface IConversation extends Document{
+export interface IConversation extends Document {
     participants: Types.ObjectId[];
 }
 
-const conversationSchema = new Schema <IConversation>(
+const conversationSchema = new Schema<IConversation>(
     {
-        participants:[
-            {type:Schema.Types.ObjectId, ref:"User",required:true}
+        participants: [
+            { type: Schema.Types.ObjectId, ref: "User", required: true }
         ]
     },
-    {timestamps:true}
+    { timestamps: true }
 )
 
-conversationSchema.index({participants:1},{unique:true})
-
+// Remove unique index - uniqueness is handled at application level
+// conversationSchema.index({participants:1},{unique:true})
 
 export const Conversation = mongoose.model<IConversation>("Conversation", conversationSchema)
