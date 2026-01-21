@@ -13,13 +13,13 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@asyncapi/cli": "^5.0.6",
     "@asyncapi/html-template": "^3.5.0",
     "@asyncapi/react-component": "^2.6.5",
-    "@types/js-yaml": "^4.0.9",    
-    "@asyncapi/cli": "^5.0.6",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
+    "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.10.1",
     "@types/socket.io": "^3.0.1",
@@ -29,15 +29,16 @@
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^9.0.0",
     "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1",    
+    "swagger-ui-express": "^5.0.1",
     "typescript": "^5.9.3"
   },
-  "devDependencies": {    
+  "devDependencies": {
     "nodemon": "^3.1.11",
     "ts-node": "^10.9.2"
   }

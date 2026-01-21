@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./config/swagger";
-
+import rateLimit from "express-rate-limit"
 import authRoutes from "./routes/auth";
 import conversationRoutes from "./routes/conversation";
 import messageRoutes from "./routes/message";
@@ -16,38 +16,78 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: "*", credentials: true }));
+const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
+  'http://localhost:3000',
+];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'X-Request-Id']
+}));
+
 app.use(express.json());
 app.use(express.static("public"));
 
-// Swagger Documentation
+const generalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 100, 
+  message: {
+    status: 429,
+    message: 'Too many requests from this IP, please try again later.',
+  },
+  standardHeaders: true, 
+  legacyHeaders: false, 
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 7, 
+  message: {
+    status: 429,
+    message: 'Too many authentication attempts. Please try again after 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true, 
+});
+
+const messageLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, 
+  max: 50, 
+  message: {
+    status: 429,
+    message: 'You are sending messages too quickly. Please slow down.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+
+app.use('/api/', generalLimiter);
+
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customCss: '.swagger-ui .topbar { display: none }',
   customSiteTitle: "Chat API Documentation"
 }));
 
-// AsyncAPI Documentation for Socket.IO
 app.use("/socket-docs", asyncapiRoutes);
 
-// API Routes
-app.use("/api/auth", authRoutes);
+app.use("/api/auth",authLimiter, authRoutes);
 app.use("/api/conversations", conversationRoutes);
-app.use("/api/messages", messageRoutes);
+app.use("/api/messages",messageLimiter, messageRoutes);
 app.use("/api/users", userRoutes);
-
-app.get("/", (_req, res) => {
-  res.json({
-    status: "OK",
-    message: "Realtime Chat API Running",
-    documentation: {
-      restAPI: "http://localhost:5000/api-docs",
-      socketIO: "http://localhost:5000/socket-docs",
-      socketTester: "http://localhost:5000/socket-tester.html"
-    }
-  });
-});
-
-
 app.use(errorHandler);
 
 export default app;
