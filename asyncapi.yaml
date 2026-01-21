@@ -1,0 +1,312 @@
+asyncapi: 2.6.0
+info:
+  title: Chat Backend Socket.IO API
+  version: 1.0.0
+  description: |
+    Real-time messaging API using Socket.IO for chat application.
+    
+    ## Authentication
+    Connect with JWT token in auth object:
+    ```javascript
+    io('http://localhost:5000', { auth: { token: 'your_jwt_token' } })
+    ```
+  contact:
+    name: API Support
+    email: support@chatapp.com
+
+servers:
+  development:
+    url: localhost:5000
+    protocol: ws
+    description: Development WebSocket server
+  production:
+    host: '{WS_HOST}'
+    protocol: wss
+    description: Production WebSocket server (secure)
+
+channels:
+  /:
+    description: Main Socket.IO connection
+    publish:
+      summary: Events client can emit
+      message:
+        oneOf:
+          - $ref: '#/components/messages/joinConversation'
+          - $ref: '#/components/messages/leaveConversation'
+          - $ref: '#/components/messages/sendMessage'
+          - $ref: '#/components/messages/typingStart'
+          - $ref: '#/components/messages/typingStop'
+          - $ref: '#/components/messages/markConversationAsRead'
+          - $ref: '#/components/messages/joinedMultipleConversations'
+    subscribe:
+      summary: Events client receives
+      message:
+        oneOf:
+          - $ref: '#/components/messages/joined'
+          - $ref: '#/components/messages/privateMessage'
+          - $ref: '#/components/messages/messageDelivered'
+          - $ref: '#/components/messages/messagesRead'
+          - $ref: '#/components/messages/userTyping'
+          - $ref: '#/components/messages/userStatusChanged'
+          - $ref: '#/components/messages/joinedMultiple'
+          - $ref: '#/components/messages/error'
+
+components:
+  messages:
+    # Client Emits (Publish)
+    joinConversation:
+      name: joinConversation
+      title: Join Conversation
+      summary: Join a conversation room to send/receive messages
+      payload:
+        type: object
+        required:
+          - conversationId
+        properties:
+          conversationId:
+            type: string
+            description: ID of the conversation to join
+            example: "507f1f77bcf86cd799439011"
+      x-response: joined
+      
+    leaveConversation:
+      name: leaveConversation
+      title: Leave Conversation
+      summary: Leave the current conversation room
+      payload:
+        type: object
+        properties: {}
+      
+    sendMessage:
+      name: sendMessage
+      title: Send Message
+      summary: Send a message in the joined conversation
+      description: Must join conversation first using joinConversation
+      payload:
+        type: object
+        required:
+          - content
+        properties:
+          content:
+            type: string
+            description: Message text content
+            example: "Hello, how are you?"
+      x-response: privateMessage
+      
+    typingStart:
+      name: typing-start
+      title: Start Typing
+      summary: Notify others you started typing
+      description: Broadcasts to other participants in the conversation
+      payload:
+        type: object
+        properties: {}
+      x-response: userTyping
+      
+    typingStop:
+      name: typing-stop
+      title: Stop Typing
+      summary: Notify others you stopped typing
+      payload:
+        type: object
+        properties: {}
+      x-response: userTyping
+      
+    markConversationAsRead:
+      name: markConversationAsRead
+      title: Mark Conversation As Read
+      summary: Mark all messages in conversation as read
+      payload:
+        type: object
+        required:
+          - conversationId
+        properties:
+          conversationId:
+            type: string
+            example: "507f1f77bcf86cd799439011"
+      x-response: messagesRead
+      
+    joinedMultipleConversations:
+      name: joinedMultipleConversations
+      title: Join Multiple Conversations
+      summary: Join multiple conversation rooms at once
+      description: Useful for receiving notifications from all conversations
+      payload:
+        type: object
+        required:
+          - conversationIds
+        properties:
+          conversationIds:
+            type: array
+            items:
+              type: string
+            example: ["conv_1", "conv_2", "conv_3"]
+      x-response: joinedMultiple
+
+    # Server Emits (Subscribe)
+    joined:
+      name: joined
+      title: Joined Confirmation
+      summary: Confirmation that you joined a conversation
+      payload:
+        type: object
+        properties:
+          conversationId:
+            type: string
+            example: "507f1f77bcf86cd799439011"
+            
+    privateMessage:
+      name: private-message
+      title: New Message
+      summary: New message received in conversation
+      payload:
+        type: object
+        properties:
+          _id:
+            type: string
+            description: Message ID
+          conversation:
+            type: string
+            description: Conversation ID
+          sender:
+            type: string
+            description: Sender user ID
+          receiver:
+            type: string
+            description: Receiver user ID
+          content:
+            type: string
+            description: Message content
+            example: "Hello!"
+          delivered:
+            type: boolean
+            example: false
+          deliveredAt:
+            type: string
+            format: date-time
+            nullable: true
+          read:
+            type: boolean
+            example: false
+          readAt:
+            type: string
+            format: date-time
+            nullable: true
+          createdAt:
+            type: string
+            format: date-time
+          updatedAt:
+            type: string
+            format: date-time
+            
+    messageDelivered:
+      name: message-delivered
+      title: Message Delivered
+      summary: Message was delivered to recipient
+      payload:
+        type: object
+        properties:
+          messageId:
+            type: string
+            description: ID of delivered message
+          deliveredAt:
+            type: string
+            format: date-time
+            description: Delivery timestamp
+            
+    messagesRead:
+      name: messages-read
+      title: Messages Read
+      summary: Messages were read by recipient
+      payload:
+        type: object
+        properties:
+          conversationId:
+            type: string
+            description: Conversation ID
+          readBy:
+            type: string
+            description: User ID who read messages
+          readAt:
+            type: string
+            format: date-time
+            description: Read timestamp
+          count:
+            type: number
+            description: Number of messages marked as read
+            example: 5
+            
+    userTyping:
+      name: user-typing
+      title: User Typing Status
+      summary: User typing indicator update
+      payload:
+        type: object
+        properties:
+          conversationId:
+            type: string
+          userId:
+            type: string
+            description: User who is typing
+          isTyping:
+            type: boolean
+            description: true when started, false when stopped
+          timestamp:
+            type: number
+            description: Unix timestamp
+            example: 1705747200000
+            
+    userStatusChanged:
+      name: user-status-changed
+      title: User Status Changed
+      summary: User went online/offline
+      payload:
+        type: object
+        properties:
+          userId:
+            type: string
+          status:
+            type: string
+            enum: [ONLINE, OFFLINE, AWAY]
+          timestamp:
+            type: number
+          lastSeen:
+            type: number
+            description: Only present when going offline
+            
+    joinedMultiple:
+      name: joinedMultiple
+      title: Multiple Join Results
+      summary: Results of joining multiple conversations
+      payload:
+        type: object
+        properties:
+          results:
+            type: array
+            items:
+              type: object
+              properties:
+                conversationId:
+                  type: string
+                status:
+                  type: string
+                  enum: [joined, denied]
+                  
+    error:
+      name: error
+      title: Error
+      summary: Error occurred during operation
+      payload:
+        type: object
+        properties:
+          message:
+            type: string
+            description: Error description
+            example: "You must join a conversation first"
+
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from login endpoint

@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Event Tester - Chat Backend</title>
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .status.connected {
+            background: #4caf50;
+            color: white;
+        }
+
+        .status.disconnected {
+            background: #f44336;
+            color: white;
+        }
+
+        h2 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 18px;
+            border-bottom: 2px solid #4caf50;
+            padding-bottom: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #666;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        input,
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        button {
+            background: #4caf50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        button:hover:not(:disabled) {
+            background: #45a049;
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .btn-disconnect {
+            background: #f44336;
+        }
+
+        .btn-disconnect:hover:not(:disabled) {
+            background: #da190b;
+        }
+
+        .event-log {
+            grid-column: 1 / -1;
+            max-height: 400px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+        }
+
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-left: 3px solid #4caf50;
+            background: #2a2a2a;
+        }
+
+        .log-entry.emit {
+            border-left-color: #2196f3;
+        }
+
+        .log-entry.receive {
+            border-left-color: #4caf50;
+        }
+
+        .log-entry.error {
+            border-left-color: #f44336;
+        }
+
+        .log-time {
+            color: #888;
+            font-size: 11px;
+        }
+
+        .log-event {
+            color: #569cd6;
+            font-weight: bold;
+        }
+
+        .log-data {
+            color: #ce9178;
+            white-space: pre-wrap;
+            margin-top: 5px;
+        }
+
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-actions button {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #1976d2;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="panel header">
+            <h1>🔌 Socket.IO Event Tester</h1>
+            <p style="color: #666; margin: 10px 0;">Test WebSocket events for Chat Backend</p>
+            <div id="connectionStatus" class="status disconnected">Disconnected</div>
+        </div>
+
+        <!-- Connection Panel -->
+        <div class="panel">
+            <h2>1. Connection</h2>
+            <div class="info-box">
+                First login via <a href="/api-docs" target="_blank">REST API</a> to get JWT token
+            </div>
+            <div class="form-group">
+                <label>Server URL</label>
+                <input type="text" id="serverUrl" value="http://localhost:5000" />
+            </div>
+            <div class="form-group">
+                <label>JWT Token</label>
+                <input type="text" id="jwtToken" placeholder="Paste your JWT token here" />
+            </div>
+            <div class="quick-actions">
+                <button onclick="connect()" id="connectBtn">Connect</button>
+                <button onclick="disconnect()" id="disconnectBtn" class="btn-disconnect" disabled>Disconnect</button>
+            </div>
+        </div>
+
+        <!-- Conversation Management -->
+        <div class="panel">
+            <h2>2. Join Conversation</h2>
+            <div class="form-group">
+                <label>Conversation ID</label>
+                <input type="text" id="conversationId" placeholder="Enter conversation ID" />
+            </div>
+            <div class="quick-actions">
+                <button onclick="joinConversation()" disabled class="socket-action">Join</button>
+                <button onclick="leaveConversation()" disabled class="socket-action">Leave</button>
+            </div>
+        </div>
+
+        <!-- Send Message -->
+        <div class="panel">
+            <h2>3. Send Message</h2>
+            <div class="form-group">
+                <label>Message Content</label>
+                <textarea id="messageContent" placeholder="Type your message..."></textarea>
+            </div>
+            <button onclick="sendMessage()" disabled class="socket-action">Send Message</button>
+        </div>
+
+        <!-- Typing Indicators -->
+        <div class="panel">
+            <h2>4. Typing Indicators</h2>
+            <div class="quick-actions">
+                <button onclick="startTyping()" disabled class="socket-action">Start Typing</button>
+                <button onclick="stopTyping()" disabled class="socket-action">Stop Typing</button>
+            </div>
+        </div>
+
+        <!-- Mark as Read -->
+        <div class="panel">
+            <h2>5. Mark as Read</h2>
+            <div class="form-group">
+                <label>Message IDs (comma-separated)</label>
+                <input type="text" id="messageIds" placeholder="msg1, msg2, msg3" />
+            </div>
+            <button onclick="markAsRead()" disabled class="socket-action">Mark As Read</button>
+            <button onclick="markConversationAsRead()" disabled class="socket-action" style="margin-top: 10px;">Mark
+                Conversation As Read</button>
+        </div>
+
+        <!-- Multiple Conversations -->
+        <div class="panel">
+            <h2>6. Join Multiple Conversations</h2>
+            <div class="form-group">
+                <label>Conversation IDs (comma-separated)</label>
+                <input type="text" id="multipleConvIds" placeholder="conv1, conv2, conv3" />
+            </div>
+            <button onclick="joinMultipleConversations()" disabled class="socket-action">Join Multiple</button>
+        </div>
+
+        <!-- Event Log -->
+        <div class="panel" style="grid-column: 1 / -1;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin: 0;">📋 Event Log</h2>
+                <button onclick="clearLog()">Clear Log</button>
+            </div>
+            <div id="eventLog" class="event-log"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+
+        function log(type, event, data) {
+            const logDiv = document.getElementById('eventLog');
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.innerHTML = `
+                <div class="log-time">[${time}]</div>
+                <div class="log-event">${type.toUpperCase()}: ${event}</div>
+                <div class="log-data">${JSON.stringify(data, null, 2)}</div>
+            `;
+            logDiv.insertBefore(entry, logDiv.firstChild);
+        }
+
+        function clearLog() {
+            document.getElementById('eventLog').innerHTML = '';
+        }
+
+        function updateConnectionStatus(connected) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const socketActions = document.querySelectorAll('.socket-action');
+
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = 'Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                socketActions.forEach(btn => btn.disabled = false);
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = 'Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                socketActions.forEach(btn => btn.disabled = true);
+            }
+        }
+
+        function connect() {
+            const serverUrl = document.getElementById('serverUrl').value;
+            const token = document.getElementById('jwtToken').value;
+
+            if (!token) {
+                alert('Please enter JWT token');
+                return;
+            }
+
+            socket = io(serverUrl, {
+                auth: { token }
+            });
+
+            socket.on('connect', () => {
+                log('receive', 'connect', { message: 'Connected to server' });
+                updateConnectionStatus(true);
+            });
+
+            socket.on('disconnect', () => {
+                log('receive', 'disconnect', { message: 'Disconnected from server' });
+                updateConnectionStatus(false);
+            });
+
+            socket.on('error', (data) => {
+                log('error', 'error', data);
+            });
+
+            socket.on('joined', (data) => {
+                log('receive', 'joined', data);
+            });
+
+            socket.on('private-message', (data) => {
+                log('receive', 'private-message', data);
+            });
+
+            socket.on('message-delivered', (data) => {
+                log('receive', 'message-delivered', data);
+            });
+
+            socket.on('messages-read', (data) => {
+                log('receive', 'messages-read', data);
+            });
+
+            socket.on('user-typing', (data) => {
+                log('receive', 'user-typing', data);
+            });
+
+            socket.on('user-status-changed', (data) => {
+                log('receive', 'user-status-changed', data);
+            });
+
+            socket.on('joinedMultiple', (data) => {
+                log('receive', 'joinedMultiple', data);
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+        }
+
+        function joinConversation() {
+            const conversationId = document.getElementById('conversationId').value;
+            if (!conversationId) {
+                alert('Please enter conversation ID');
+                return;
+            }
+            const data = { conversationId };
+            socket.emit('joinConversation', data);
+            log('emit', 'joinConversation', data);
+        }
+
+        function leaveConversation() {
+            socket.emit('leaveConversation');
+            log('emit', 'leaveConversation', {});
+        }
+
+        function sendMessage() {
+            const content = document.getElementById('messageContent').value;
+            if (!content) {
+                alert('Please enter message content');
+                return;
+            }
+            const data = { content };
+            socket.emit('sendMessage', data);
+            log('emit', 'sendMessage', data);
+            document.getElementById('messageContent').value = '';
+        }
+
+        function startTyping() {
+            socket.emit('typing-start');
+            log('emit', 'typing-start', {});
+        }
+
+        function stopTyping() {
+            socket.emit('typing-stop');
+            log('emit', 'typing-stop', {});
+        }
+
+        function markAsRead() {
+            const ids = document.getElementById('messageIds').value;
+            if (!ids) {
+                alert('Please enter message IDs');
+                return;
+            }
+            const messageIds = ids.split(',').map(id => id.trim());
+            const data = { messageIds };
+            socket.emit('markAsRead', data);
+            log('emit', 'markAsRead', data);
+        }
+
+        function markConversationAsRead() {
+            const conversationId = document.getElementById('conversationId').value;
+            if (!conversationId) {
+                alert('Please enter conversation ID');
+                return;
+            }
+            const data = { conversationId };
+            socket.emit('markConversationAsRead', data);
+            log('emit', 'markConversationAsRead', data);
+        }
+
+        function joinMultipleConversations() {
+            const ids = document.getElementById('multipleConvIds').value;
+            if (!ids) {
+                alert('Please enter conversation IDs');
+                return;
+            }
+            const conversationIds = ids.split(',').map(id => id.trim());
+            const data = { conversationIds };
+            socket.emit('joinedMultipleConversations', data);
+            log('emit', 'joinedMultipleConversations', data);
+        }
+    </script>
+</body>
+
+</html>
