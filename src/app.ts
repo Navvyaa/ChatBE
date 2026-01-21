@@ -15,6 +15,7 @@ import { errorHandler } from "./middleware/error";
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1);
 
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
   'http://localhost:3000',
@@ -24,7 +25,7 @@ app.use(cors({
   origin: (origin, callback) => {
     if (!origin) {
       return callback(null, true);
-    }    
+    }
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -41,31 +42,31 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 100, 
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: {
     status: 429,
     message: 'Too many requests from this IP, please try again later.',
   },
-  standardHeaders: true, 
-  legacyHeaders: false, 
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 7, 
+  windowMs: 15 * 60 * 1000,
+  max: 7,
   message: {
     status: 429,
     message: 'Too many authentication attempts. Please try again after 15 minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, 
+  skipSuccessfulRequests: true,
 });
 
 const messageLimiter = rateLimit({
-  windowMs: 1 * 60 * 1000, 
-  max: 50, 
+  windowMs: 1 * 60 * 1000,
+  max: 50,
   message: {
     status: 429,
     message: 'You are sending messages too quickly. Please slow down.',
@@ -84,9 +85,9 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 
 app.use("/socket-docs", asyncapiRoutes);
 
-app.use("/api/auth",authLimiter, authRoutes);
+app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/conversations", conversationRoutes);
-app.use("/api/messages",messageLimiter, messageRoutes);
+app.use("/api/messages", messageLimiter, messageRoutes);
 app.use("/api/users", userRoutes);
 app.use(errorHandler);
 
