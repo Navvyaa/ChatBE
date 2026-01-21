@@ -19,6 +19,10 @@ servers:
     url: localhost:5000
     protocol: ws
     description: Development WebSocket server
+  production:
+    host: '{WS_HOST}'
+    protocol: wss
+    description: Production WebSocket server (secure)
 
 channels:
   /:

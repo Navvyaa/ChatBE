@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "generate:socket-docs": "asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template@3.5.0 -o public/socket-docs"
+    "generate:socket-docs": "asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs"
   },
   "author": "",
   "license": "ISC",
@@ -28,7 +28,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
-    "@asyncapi/cli": "^4.1.1",
+    "@asyncapi/cli": "^5.0.6",
     "@types/bcrypt": "^6.0.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
