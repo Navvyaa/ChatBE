@@ -2,7 +2,7 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import { Message } from "../models/Message";
 import { Conversation } from "../models/Conversation";
-import { io } from "../server";
+import { getIO } from "../socket/io";
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
   const { conversationId, content } = req.body;
@@ -34,7 +34,7 @@ export const sendMessage = async (req: AuthRequest, res: Response) => {
     content
   });
 
-  io.to(receiverId.toString()).emit("private-message", message);
+  getIO().to(receiverId.toString()).emit("private-message", message);
 
   res.status(201).json(message);
 };
@@ -91,7 +91,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       undeliveredMessageIds.forEach(msgId => {
         const msg = messages.find(m => m._id.toString() === msgId.toString());
         if (msg) {
-          io.to(msg.sender._id.toString()).emit("message-delivered", {
+          getIO().to(msg.sender._id.toString()).emit("message-delivered", {
             messageId: msgId,
             deliveredAt: now
           });

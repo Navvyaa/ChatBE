@@ -50,18 +50,20 @@ const generalLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
 });
 
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 7,
+  windowMs: 5 * 60 * 1000,
+  max: 5,
   message: {
     status: 429,
-    message: 'Too many authentication attempts. Please try again after 15 minutes.',
+    message: 'Too many authentication attempts. Please try again after 5 minutes.',
   },
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true,
+  skip: () => process.env.NODE_ENV === "test",
 });
 
 const messageLimiter = rateLimit({
@@ -73,6 +75,7 @@ const messageLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: () => process.env.NODE_ENV === "test",
 });
 
 
