@@ -20,7 +20,7 @@ servers:
     protocol: ws
     description: Development WebSocket server
   production:
-    host: '{WS_HOST}'
+    url: '{WS_HOST}'
     protocol: wss
     description: Production WebSocket server (secure)
 

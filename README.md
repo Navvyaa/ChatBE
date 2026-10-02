@@ -1,6 +1,6 @@
 # 💬 Real-Time Chat Application Backend
 
-A production-ready real-time chat backend built with Node.js, Express, Socket.IO, MongoDB, and TypeScript featuring JWT authentication, message delivery receipts, typing indicators, and comprehensive API documentation.
+A real-time chat backend built with Node.js, Express, Socket.IO, MongoDB, and TypeScript featuring JWT authentication, message delivery receipts, typing indicators, and comprehensive API documentation.
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green)](https://nodejs.org/)
