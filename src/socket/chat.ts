@@ -132,7 +132,7 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
             receiver: receiverId,
             content,
         });
-
+        await Conversation.updateOne({ _id: conversationId }, { $set: { updatedAt: new Date() } });
         io.to(conversationId).emit("private-message", message);
 
         const receiverSocketId = Array.from(io.sockets.sockets.values())
