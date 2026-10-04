@@ -9,6 +9,8 @@ export interface IMessage extends Document {
     deliveredAt: Date;
     read: boolean;
     readAt: Date;
+    createdAt: Date;
+    updatedAt: Date;
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -28,4 +30,4 @@ const messageSchema = new Schema<IMessage>(
     }, { timestamps: true }
 )
 
-export const Message = mongoose.model("Message", messageSchema);
+export const Message = mongoose.model<IMessage>("Message", messageSchema);

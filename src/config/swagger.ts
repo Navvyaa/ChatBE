@@ -1,5 +1,5 @@
 import swaggerJsdoc from 'swagger-jsdoc';
-
+import path from 'path';
 const options: swaggerJsdoc.Options = {
     definition: {
         openapi: '3.0.0',
@@ -90,7 +90,10 @@ const options: swaggerJsdoc.Options = {
             bearerAuth: []
         }]
     },
-    apis: ['./src/routes/*.ts', './src/controller/*.ts']
+    apis: [
+        path.join(process.cwd(),'dist/routes/*.js'),
+        path.join(process.cwd(),'dist/controller/*.js'),
+    ]
 };
 
 export const swaggerSpec = swaggerJsdoc(options);

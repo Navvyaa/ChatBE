@@ -2,41 +2,51 @@ import { Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import { Message } from "../models/Message";
 import { Conversation } from "../models/Conversation";
-import { io } from "../server";
+import { getIO } from "../socket/io";
+import mongoose from "mongoose";
 
 export const sendMessage = async (req: AuthRequest, res: Response) => {
-  const { conversationId, content } = req.body;
-  if (!conversationId || !content || conversationId === "") {
-    return res.status(400).json({ message: "conversationId and content are required" })
-  }
-  if (content === "") {
-    return res.status(400).json({ message: "Empty content cannot be send" })
-  }
-  const senderId = req.user._id;
+  try {
+    const { conversationId, content } = req.body;
+    if (!conversationId || !content || conversationId === "") {
+      return res.status(400).json({ message: "conversationId and content are required" })
+    }
+    if (content === "") {
+      return res.status(400).json({ message: "Empty content cannot be send" })
+    }
+    const senderId = req.user._id;
+    if (!mongoose.isValidObjectId(conversationId)) return res.status(400).json({ message: "Invalid conversation id" });
 
-  const conversation = await Conversation.findById(conversationId);
-  if (!conversation) {
-    return res.status(404).json({ message: "Conversation not found" });
+
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ message: "Conversation not found" });
+    }
+
+    if (!conversation.participants.some(p => p.equals(senderId))) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const receiverId = conversation.participants.find(p => !p.equals(senderId));
+    if (!receiverId) {
+      return res.status(400).json({ message: "Receiver not found" });
+    }
+    const message = await Message.create({
+      conversation: conversationId,
+      sender: senderId,
+      receiver: receiverId,
+      content
+    });
+    await Conversation.updateOne({ _id: conversationId }, { $set: { updatedAt: new Date() } });
+
+    getIO().to(receiverId.toString()).emit("private-message", message);
+
+    res.status(201).json(message);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" })
   }
-
-  if (!conversation.participants.some(p => p.equals(senderId))) {
-    return res.status(403).json({ message: "Access denied" });
-  }
-
-  const receiverId = conversation.participants.find(p => !p.equals(senderId));
-  if (!receiverId) {
-    return res.status(400).json({ message: "Receiver not found" });
-  }
-  const message = await Message.create({
-    conversation: conversationId,
-    sender: senderId,
-    receiver: receiverId,
-    content
-  });
-
-  io.to(receiverId.toString()).emit("private-message", message);
-
-  res.status(201).json(message);
+  
 };
 
 export const getMessages = async (req: AuthRequest, res: Response) => {
@@ -48,6 +58,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     const after = req.query.after ? parseInt(req.query.after as string) : null;
     const skip = (page - 1) * limit;
 
+    if (!mongoose.isValidObjectId(conversationId)) return res.status(400).json({ message: "Invalid conversation id" });
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
       return res.status(404).json({ message: "Conversation not found" });
@@ -55,6 +66,8 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     if (!conversation.participants.some(p => p.equals(req.user._id))) {
       return res.status(403).json({ message: "Access denied" });
     }
+
+
 
     let query: any = { conversation: conversationId };
 
@@ -91,7 +104,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
       undeliveredMessageIds.forEach(msgId => {
         const msg = messages.find(m => m._id.toString() === msgId.toString());
         if (msg) {
-          io.to(msg.sender._id.toString()).emit("message-delivered", {
+          getIO().to(msg.sender._id.toString()).emit("message-delivered", {
             messageId: msgId,
             deliveredAt: now
           });

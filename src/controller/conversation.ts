@@ -1,6 +1,8 @@
 import { Response } from "express";
 import { AuthRequest } from "../middleware/auth";
 import { Conversation } from "../models/Conversation";
+import { User } from "../models/User";
+import mongoose from "mongoose";
 
 export const startConversation = async (req: AuthRequest, res: Response) => {
     try {
@@ -10,12 +12,16 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
             return res.status(400).json({ message: "Participant id not provided" })
         }
         if (userId.toString() === currentUserId.toString()) {
-            return res.status(400).json({ message: "You cannot start a conversation with yourself." })
+            return res.status(400).json({ message: "You cannot start a conversation with yourself" })
         }
+        if (!mongoose.isValidObjectId(userId)) return res.status(400).json({ message: "Invalid user id" });
+        
+        if (!(await User.exists({ _id: userId }))) return res.status(404).json({ message: "User not found" });
+        
         let conversation = await Conversation.findOne({
             participants: { $all: [currentUserId, userId], $size: 2 }
         })
-
+        
         if (!conversation) {
             conversation = await Conversation.create({
                 participants: [currentUserId, userId]
@@ -27,7 +33,8 @@ export const startConversation = async (req: AuthRequest, res: Response) => {
 
         res.json(conversation);
     } catch (err) {
-        console.log(err)
+        console.log(err);
+        res.status(500).json({ message: "Server error" });
     }
 
 }
@@ -44,12 +51,17 @@ export const listConversations = async (req: AuthRequest, res: Response) => {
         };
 
         if (search) {
-            const searchRegex = new RegExp(search, 'i');
-            const users = await require('../models/User').User.find({
-                username: searchRegex
-            }).select('_id');
-            const userIds = users.map((u: any) => u._id);
-            query.participants = { $in: [req.user._id, ...userIds] };
+            const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const users = await User.find({
+                username: new RegExp(escaped, "i"),
+                _id: { $ne: req.user._id },
+            }).select("_id");
+            query = {
+                $and: [
+                    { participants: req.user._id },
+                    { participants: { $in: users.map((u) => u._id) } },
+                ],
+            };
         }
 
         const total = await Conversation.countDocuments(query);

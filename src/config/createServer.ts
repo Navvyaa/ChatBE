@@ -1,0 +1,15 @@
+import http from "http";
+import { Server } from "socket.io";
+import app from "../app";
+import { registerSocketHandlers } from "../socket";
+import  {setIO} from "../socket/io";
+
+export const createServer = () => {
+    const server = http.createServer(app);
+    const io = new Server(server, {
+        cors: { origin: "*", methods: ["GET", "POST"] },
+    })
+    setIO(io);
+    registerSocketHandlers(io);
+    return { server, io };
+}
