@@ -8,7 +8,21 @@ COPY src ./src
 RUN npm run build
 
 
-# ---- Stage 2: runtime ----
+# ---- Stage 2: test ----
+
+FROM node:22-alpine AS test
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY tsconfig.json jest.config.js ./ 
+COPY src ./src
+COPY tests ./tests
+
+CMD ["npm", "test"]
+
+# ---- Stage : runtime ----
 FROM node:22-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production 

@@ -91,7 +91,7 @@ export const refresh = async (req: Request, res: Response) => {
 
         return res.json({
             accessToken: newAccessToken,
-            expiresIn: 172800
+            expiresIn: 432000
         });
     } catch (error) {
         console.error(error);
