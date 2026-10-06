@@ -1,4 +1,7 @@
 services:
+
+  redis:
+    image: redis:7-alpine
   app:
     build: .
     ports:
@@ -12,8 +15,10 @@ services:
       API_URL: http://localhost:5000
       WS_HOST: localhost:5000
       ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      REDIS_URL: redis://redis:6379
     depends_on:
       - mongo
+      - redis
 
   test:
     build:
@@ -21,11 +26,13 @@ services:
       target: test
     environment:
       TEST_MONGO_URI: mongodb://mongo:27017
+      REDIS_URL: redis://redis:6379
     volumes:
       - ./tests:/app/tests
       - ./src:/app/src
     depends_on:
       - mongo
+      - redis
     profiles: ["test"]
   
   mongo:
