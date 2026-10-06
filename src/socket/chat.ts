@@ -135,10 +135,8 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
         await Conversation.updateOne({ _id: conversationId }, { $set: { updatedAt: new Date() } });
         io.to(conversationId).emit("private-message", message);
 
-        const receiverSocketId = Array.from(io.sockets.sockets.values())
-            .find(s => s.data.userId?.toString() === receiverId.toString())?.id;
-
-        if (receiverSocketId) {
+       const receiverOnline = (await io.in(receiverId.toString()).fetchSockets()).length > 0;
+        if (receiverOnline) {
             message.delivered = true;
             message.deliveredAt = new Date();
             await message.save();
@@ -172,16 +170,21 @@ export const registerChatHandlers = (io: Server, socket: Socket) => {
 
 
     socket.on("disconnect", async () => {
-        console.log("user disconnected", userId);
-        await User.findByIdAndUpdate(userId, {
-            status: 'OFFLINE',
-            lastSeen: new Date()
-        });
-        socket.broadcast.emit("user-status-changed", {
+        try {
+            const stillConnected=await io.in(userId).fetchSockets();
+            if(stillConnected.length > 0)   return;
+            await User.findByIdAndUpdate(userId,{
+                status:"OFFLINE",
+                lastSeen: new Date()
+            });
+            socket.broadcast.emit("user-status-changed", {
             userId,
             status: 'OFFLINE',
             lastSeen: Date.now(),
             timestamp: Date.now()
         });
+        } catch (error) {            
+            console.error("disconnect handler failed:", error);
+        }
     })
 }

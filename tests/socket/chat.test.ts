@@ -276,4 +276,28 @@ describe("presence", () => {
     const user = await User.findById(alice.id);
     expect(user!.status).toBe("OFFLINE");
   });
+
+    it("stays ONLINE while another connection of the same user is open", async () => {
+    const a = await connectAs(alice);
+    const bob1 = await connectAs(bob);
+    const bob2 = await connectAs(bob);
+
+    const spy = jest.fn();
+    a.on("user-status-changed", (e: any) => {
+      if (e.userId === bob.id && e.status === "OFFLINE") spy();
+    });
+
+    bob1.close();
+    await sleep(300);
+    expect(spy).not.toHaveBeenCalled();
+    expect((await User.findById(bob.id))!.status).toBe("ONLINE");
+
+    const offline = waitFor(
+      a, "user-status-changed",
+      (e: any) => e.userId === bob.id && e.status === "OFFLINE"
+    );
+    bob2.close();
+    await offline;
+    expect((await User.findById(bob.id))!.status).toBe("OFFLINE");
+  });
 });
