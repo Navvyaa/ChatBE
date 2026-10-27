@@ -11,6 +11,10 @@ export interface IMessage extends Document {
     readAt: Date;
     createdAt: Date;
     updatedAt: Date;
+    edited:boolean;
+    editedAt:Date;
+    deletedAt:Date;
+    deleted:Boolean;
 }
 
 const messageSchema = new Schema<IMessage>(
@@ -26,7 +30,11 @@ const messageSchema = new Schema<IMessage>(
         delivered: { type: Boolean, default: false },
         deliveredAt: { type: Date },
         read: { type: Boolean, default: false },
-        readAt: { type: Date }
+        readAt: { type: Date } ,
+        edited: {type: Boolean, default: false},
+        editedAt: {type: Date},
+        deleted: { type:Boolean, default:false},
+        deletedAt: {type: Date}
     }, { timestamps: true }
 )
 

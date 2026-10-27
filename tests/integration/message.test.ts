@@ -5,6 +5,11 @@ import { api } from "../helpers/api";
 import { Conversation } from "../../src/models/Conversation";
 import { Message } from "../../src/models/Message";
 import { getIO } from "../../src/socket/io";
+import request  from "supertest";
+import app from "../../src/app";
+import { startTestServer } from "../helpers/socketServer";
+import { Socket } from "socket.io-client";
+import { connectClient, waitFor, sleep } from "../helpers/socketClient";
 
 type TestUser = Awaited<ReturnType<typeof registerAndLogin>>;
 let alice: TestUser, bob: TestUser, carol: TestUser;
@@ -47,6 +52,27 @@ const seed = (from: TestUser, to: TestUser, n: number, extra: object = {}) => {
     }))
   );
 };
+
+const seedOne = (content = "original") =>
+  Message.create({
+    conversation: convoId,
+    sender: alice.id,
+    receiver: bob.id,
+    content,
+  });
+
+  
+const edit = (user: TestUser, id: unknown, body: object = {}) =>
+  request(app)
+    .patch(`/api/messages/${id}`)
+    .set("Authorization", `Bearer ${user.accessToken}`)
+    .send(body);
+ 
+const remove = (user: TestUser, id: unknown) =>
+  request(app)
+    .delete(`/api/messages/${id}`)
+    .set("Authorization", `Bearer ${user.accessToken}`);
+
 
 describe("POST /api/messages", () => {
   const send = (user: TestUser, body: object) =>
@@ -180,3 +206,199 @@ describe("GET /api/messages/:conversationId", () => {
   });
 });
 
+describe("PATCH /api/messages/:messageId", () => {
+  it("lets the sender edit and marks the message as edited", async () => {
+    const msg = await seedOne();
+    const res = await edit(alice, msg._id, { content: "fixed" });
+ 
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ content: "fixed", edited: true });
+    expect(res.body.editedAt).toBeDefined();
+ 
+    const saved = await Message.findById(msg._id);
+    expect(saved!.content).toBe("fixed");
+    expect(saved!.edited).toBe(true);
+  });
+ 
+  it("notifies both participants through their personal rooms", async () => {
+    const msg = await seedOne();
+    const { emit, to } = mockEmit();
+ 
+    await edit(alice, msg._id, { content: "fixed" });
+ 
+    expect(to).toHaveBeenCalledWith([alice.id, bob.id]);
+    expect(emit).toHaveBeenCalledWith(
+      "message-edited",
+      expect.objectContaining({ content: "fixed" })
+    );
+  });
+ 
+  it("does not let the receiver edit (403) and leaves the text unchanged", async () => {
+    const msg = await seedOne();
+    const res = await edit(bob, msg._id, { content: "hacked" });
+ 
+    expect(res.status).toBe(403);
+    expect((await Message.findById(msg._id))!.content).toBe("original");
+  });
+ 
+  it("hides the message from strangers (404)", async () => {
+    const msg = await seedOne();
+    expect((await edit(carol, msg._id, { content: "hacked" })).status).toBe(404);
+  });
+ 
+  it("returns 404 for an unknown message and 400 for a malformed id", async () => {
+    const unknown = new mongoose.Types.ObjectId();
+    expect((await edit(alice, unknown, { content: "x" })).status).toBe(404);
+    expect((await edit(alice, "not-an-id", { content: "x" })).status).toBe(400);
+  });
+ 
+  it.each([
+    ["missing content", undefined],
+    ["whitespace-only content", "   "],
+    ["non-string content", 42],
+  ])("rejects %s", async (_label, content) => {
+    const msg = await seedOne();
+    const res = await edit(alice, msg._id, { content });
+ 
+    expect(res.status).toBe(400);
+    expect((await Message.findById(msg._id))!.content).toBe("original");
+  });
+ 
+  it("does not allow editing a deleted message (409)", async () => {
+    const msg = await seedOne();
+    await remove(alice, msg._id);
+ 
+    const res = await edit(alice, msg._id, { content: "undelete" });
+    expect(res.status).toBe(409);
+  });
+});
+ 
+describe("DELETE /api/messages/:messageId", () => {
+  it("soft-deletes: keeps the row, wipes the text, marks it deleted", async () => {
+    const msg = await seedOne("secret text");
+    const res = await remove(alice, msg._id);
+ 
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ _id: msg._id.toString(), deleted: true });
+ 
+    const saved = await Message.findById(msg._id);
+    expect(saved).not.toBeNull();
+    expect(saved!.deleted).toBe(true);
+    expect(saved!.deletedAt).toBeInstanceOf(Date);
+    expect(saved!.content).toBe("");
+  });
+ 
+  it("shows up in history as deleted, without the original text", async () => {
+    const msg = await seedOne("secret text");
+    await remove(alice, msg._id);
+ 
+    const res = await api(bob.accessToken).get(`/api/messages/${convoId}`);
+    const entry = res.body.data.find((m: any) => m._id === msg._id.toString());
+ 
+    expect(entry.deleted).toBe(true);
+    expect(entry.content).toBe("");
+    expect(JSON.stringify(res.body)).not.toContain("secret text");
+  });
+ 
+  it("notifies both participants", async () => {
+    const msg = await seedOne();
+    const { emit, to } = mockEmit();
+ 
+    await remove(alice, msg._id);
+ 
+    expect(to).toHaveBeenCalledWith([alice.id, bob.id]);
+    expect(emit).toHaveBeenCalledWith(
+      "message-deleted",
+      expect.objectContaining({ messageId: msg._id })
+    );
+  });
+ 
+  it("is idempotent: a second delete succeeds and sends no second event", async () => {
+    const msg = await seedOne();
+    await remove(alice, msg._id);
+ 
+    const { emit } = mockEmit();
+    const res = await remove(alice, msg._id);
+ 
+    expect(res.status).toBe(200);
+    expect(res.body.deleted).toBe(true);
+    expect(emit).not.toHaveBeenCalled();
+  });
+ 
+  it("does not let the receiver delete (403) and keeps the message intact", async () => {
+    const msg = await seedOne();
+    const res = await remove(bob, msg._id);
+ 
+    expect(res.status).toBe(403);
+    const saved = await Message.findById(msg._id);
+    expect(saved!.deleted).toBeFalsy();
+    expect(saved!.content).toBe("original");
+  });
+ 
+  it("hides the message from strangers (404)", async () => {
+    const msg = await seedOne();
+    expect((await remove(carol, msg._id)).status).toBe(404);
+  });
+ 
+  it("returns 404 for an unknown message and 400 for a malformed id", async () => {
+    const unknown = new mongoose.Types.ObjectId();
+    expect((await remove(alice, unknown)).status).toBe(404);
+    expect((await remove(alice, "not-an-id")).status).toBe(400);
+  });
+});
+ 
+// Keep this block last: it starts a real server, which replaces the dummy io
+// used by the tests above, and shuts it down again when it finishes.
+describe("real-time events for edit and delete", () => {
+  let server: Awaited<ReturnType<typeof startTestServer>>;
+  let clients: Socket[] = [];
+ 
+  beforeAll(async () => {
+    server = await startTestServer();
+  });
+ 
+  afterEach(() => {
+    clients.forEach((c) => c.close());
+    clients = [];
+  });
+ 
+  afterAll(async () => {
+    await sleep(100); // let in-flight disconnect handlers finish before the DB closes
+    await server.close();
+  });
+ 
+  // Bob is connected but has NOT joined the conversation: he still receives the
+  // event because it is sent to his personal room.
+  const connectBob = async () => {
+    const socket = await connectClient(server.url, bob.accessToken);
+    clients.push(socket);
+    return socket;
+  };
+ 
+  it("pushes message-edited to the other user", async () => {
+    const msg = await seedOne();
+    const b = await connectBob();
+ 
+    const event = waitFor(b, "message-edited");
+    await edit(alice, msg._id, { content: "fixed" });
+ 
+    expect(await event).toMatchObject({
+      messageId: msg._id.toString(),
+      conversationId: convoId,
+      content: "fixed",
+    });
+  });
+ 
+  it("pushes message-deleted to the other user", async () => {
+    const msg = await seedOne();
+    const b = await connectBob();
+ 
+    const event = waitFor(b, "message-deleted");
+    await remove(alice, msg._id);
+ 
+    expect(await event).toMatchObject({
+      messageId: msg._id.toString(),
+      conversationId: convoId,
+    });
+  });
+});
