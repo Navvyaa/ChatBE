@@ -7,7 +7,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "generate:socket-docs": "asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs",
+    "docs:socket": "$env:PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=\"true\"; npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs --force-write -p singleFile=true",
     "loadtest": "node loadtest/run.js"
   },
   "author": "",

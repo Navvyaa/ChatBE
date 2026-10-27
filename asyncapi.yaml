@@ -10,9 +10,6 @@ info:
     ```javascript
     io('http://localhost:5000', { auth: { token: 'your_jwt_token' } })
     ```
-  contact:
-    name: API Support
-    email: support@chatapp.com
 
 servers:
   development:
@@ -50,6 +47,8 @@ channels:
           - $ref: '#/components/messages/userStatusChanged'
           - $ref: '#/components/messages/joinedMultiple'
           - $ref: '#/components/messages/error'
+          - $ref: '#/components/messages/messageEdited'
+          - $ref: '#/components/messages/messageDeleted'
 
 components:
   messages:
@@ -192,6 +191,20 @@ components:
             type: string
             format: date-time
             nullable: true
+          edited:
+            type: boolean
+            example: false
+          editedAt:
+            type: string
+            format: date-time
+            nullable: true
+          deleted:
+            type: boolean
+            example: false
+          deletedAt:
+            type: string
+            format: date-time
+            nullable: true
           createdAt:
             type: string
             format: date-time
@@ -235,6 +248,43 @@ components:
             type: number
             description: Number of messages marked as read
             example: 5
+
+    messageEdited:
+      name: message-edited
+      title: Message Edited
+      summary: A message was edited by its sender
+      description: Sent to both participants when the sender calls PATCH /api/messages/{messageId}. Delivered to each user's personal room, so it arrives even if the conversation was not joined.
+      x-triggered-by: PATCH /api/messages/{messageId}
+      payload:
+        type: object
+        properties:
+          messageId:
+            type: string
+          conversationId:
+            type: string
+          content:
+            type: string
+            description: The new message text
+          editedAt:
+            type: string
+            format: date-time
+
+    messageDeleted:
+      name: message-deleted
+      title: Message Deleted
+      summary: A message was deleted by its sender (for everyone)
+      description: Sent to both participants when the sender calls DELETE /api/messages/{messageId}. The content is wiped on the server and history returns the message with deleted true, so clients should show a "This message was deleted" placeholder. Sent once even if the delete is repeated.
+      x-triggered-by: DELETE /api/messages/{messageId}
+      payload:
+        type: object
+        properties:
+          messageId:
+            type: string
+          conversationId:
+            type: string
+          deletedAt:
+            type: string
+            format: date-time
             
     userTyping:
       name: user-typing

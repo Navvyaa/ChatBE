@@ -64,6 +64,10 @@ const options: swaggerJsdoc.Options = {
                         deliveredAt: { type: 'string', format: 'date-time', nullable: true },
                         read: { type: 'boolean', example: false },
                         readAt: { type: 'string', format: 'date-time', nullable: true },
+                        edited: { type: 'boolean', example: false },
+                        editedAt: { type: 'string', format: 'date-time', nullable: true },
+                        deleted: { type: 'boolean', example: false },
+                        deletedAt: { type: 'string', format: 'date-time', nullable: true },
                         createdAt: { type: 'string', format: 'date-time' },
                         updatedAt: { type: 'string', format: 'date-time' }
                     }
