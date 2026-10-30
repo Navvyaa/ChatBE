@@ -12,7 +12,6 @@ A real-time chat backend built with Node.js, Express, Socket.IO, MongoDB, and Ty
 
 - **REST API (Swagger)**: https://chatbe-owor.onrender.com/api-docs
 - **WebSocket API (AsyncAPI)**: https://chatbe-owor.onrender.com/socket-docs
-- **Socket.IO Tester**: https://chatbe-owor.onrender.com/socket-tester.html
 > The demo runs on Render's free tier, which sleeps after inactivity. The first request can take around a minute while it wakes up.
 
 ## 📌 Highlights
@@ -38,6 +37,7 @@ A real-time chat backend built with Node.js, Express, Socket.IO, MongoDB, and Ty
 - Real-time message delivery
 - ✓✓ **Delivery & Read Receipts**
 - **Typing indicators** with start/stop events
+- **Message editing and soft deletion** with real-time update events
 - Auto-mark messages as read on join
 - Multi-conversation support
 - Presence (online/offline) with last-seen timestamps, correct across multiple tabs and devices
@@ -92,6 +92,10 @@ User                    Conversation              Message
 ├── createdAt                                     ├── deliveredAt
 └── updatedAt                                     ├── read
                                                   ├── readAt
+                                                  ├── edited
+                                                  ├── editedAt
+                                                  ├── deleted
+                                                  ├── deletedAt
                                                   ├── createdAt
                                                   └── updatedAt
 ```
@@ -202,7 +206,7 @@ Every push to `main` and every pull request runs GitHub Actions:
 ### Manual testing
  
 - **Swagger UI**: open `/api-docs`, register and log in to get a JWT, click "Authorize", and try the endpoints
-- **Socket.IO Tester**: open `/socket-tester.html`, paste a JWT, connect, and watch the event log
+- **AsyncAPI docs**: open `/socket-docs` to review the WebSocket events and payloads
 ## 📈 Scaling with Redis
  
 With one server, Socket.IO knows every connected user. With several servers behind a load balancer, a user on server A cannot reach a user on server B, and "is the receiver online?" only sees the sockets on the current server.
@@ -308,4 +312,3 @@ docker run -p 5000:5000 --env-file .env chat-backend
 - **Deployment**: Render
 
 ---
-

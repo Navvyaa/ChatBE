@@ -72,9 +72,12 @@ components:
       name: leaveConversation
       title: Leave Conversation
       summary: Leave the current conversation room
+      description: Emit without a payload to leave the currently joined conversation.
       payload:
         type: object
         properties: {}
+        additionalProperties: false
+        example: {}
       
     sendMessage:
       name: sendMessage
@@ -100,6 +103,8 @@ components:
       payload:
         type: object
         properties: {}
+        additionalProperties: false
+        example: {}
       x-response: userTyping
       
     typingStop:
@@ -109,6 +114,8 @@ components:
       payload:
         type: object
         properties: {}
+        additionalProperties: false
+        example: {}
       x-response: userTyping
       
     markConversationAsRead:
@@ -155,7 +162,7 @@ components:
             example: "507f1f77bcf86cd799439011"
             
     privateMessage:
-      name: private-message
+      name: privateMessage
       title: New Message
       summary: New message received in conversation
       payload:
@@ -164,15 +171,19 @@ components:
           _id:
             type: string
             description: Message ID
+            example: "507f1f77bcf86cd799439012"
           conversation:
             type: string
             description: Conversation ID
+            example: "507f1f77bcf86cd799439011"
           sender:
             type: string
             description: Sender user ID
+            example: "507f1f77bcf86cd799439013"
           receiver:
             type: string
             description: Receiver user ID
+            example: "507f1f77bcf86cd799439014"
           content:
             type: string
             description: Message content
@@ -184,6 +195,7 @@ components:
             type: string
             format: date-time
             nullable: true
+            example: "2026-10-30T14:50:00.000Z"
           read:
             type: boolean
             example: false
@@ -191,6 +203,7 @@ components:
             type: string
             format: date-time
             nullable: true
+            example: null
           edited:
             type: boolean
             example: false
@@ -198,6 +211,7 @@ components:
             type: string
             format: date-time
             nullable: true
+            example: null
           deleted:
             type: boolean
             example: false
@@ -205,15 +219,18 @@ components:
             type: string
             format: date-time
             nullable: true
+            example: null
           createdAt:
             type: string
             format: date-time
+            example: "2026-10-30T14:49:30.000Z"
           updatedAt:
             type: string
             format: date-time
+            example: "2026-10-30T14:49:30.000Z"
             
     messageDelivered:
-      name: message-delivered
+      name: messageDelivered
       title: Message Delivered
       summary: Message was delivered to recipient
       payload:
@@ -222,13 +239,15 @@ components:
           messageId:
             type: string
             description: ID of delivered message
+            example: "507f1f77bcf86cd799439012"
           deliveredAt:
             type: string
             format: date-time
             description: Delivery timestamp
+            example: "2026-10-30T14:50:00.000Z"
             
     messagesRead:
-      name: messages-read
+      name: messagesRead
       title: Messages Read
       summary: Messages were read by recipient
       payload:
@@ -237,57 +256,67 @@ components:
           conversationId:
             type: string
             description: Conversation ID
+            example: "507f1f77bcf86cd799439011"
           readBy:
             type: string
             description: User ID who read messages
+            example: "507f1f77bcf86cd799439013"
           readAt:
             type: string
             format: date-time
             description: Read timestamp
+            example: "2026-10-30T14:50:05.000Z"
           count:
             type: number
             description: Number of messages marked as read
             example: 5
 
     messageEdited:
-      name: message-edited
+      name: messageEdited
       title: Message Edited
       summary: A message was edited by its sender
-      description: Sent to both participants when the sender calls PATCH /api/messages/{messageId}. Delivered to each user's personal room, so it arrives even if the conversation was not joined.
+      description: Sent as the Socket.IO `message-edited` event to both participants when the sender calls PATCH /api/messages/{messageId}. Delivered to each user's personal room, so it arrives even if the conversation was not joined.
       x-triggered-by: PATCH /api/messages/{messageId}
       payload:
         type: object
         properties:
           messageId:
             type: string
+            example: "507f1f77bcf86cd799439012"
           conversationId:
             type: string
+            example: "507f1f77bcf86cd799439011"
           content:
             type: string
             description: The new message text
+            example: "Updated message text"
           editedAt:
             type: string
             format: date-time
+            example: "2026-10-30T14:51:00.000Z"
 
     messageDeleted:
-      name: message-deleted
+      name: messageDeleted
       title: Message Deleted
       summary: A message was deleted by its sender (for everyone)
-      description: Sent to both participants when the sender calls DELETE /api/messages/{messageId}. The content is wiped on the server and history returns the message with deleted true, so clients should show a "This message was deleted" placeholder. Sent once even if the delete is repeated.
+      description: Sent as the Socket.IO `message-deleted` event to both participants when the sender calls DELETE /api/messages/{messageId}. The content is wiped on the server and history returns the message with deleted true, so clients should show a "This message was deleted" placeholder. Sent once even if the delete is repeated.
       x-triggered-by: DELETE /api/messages/{messageId}
       payload:
         type: object
         properties:
           messageId:
             type: string
+            example: "507f1f77bcf86cd799439012"
           conversationId:
             type: string
+            example: "507f1f77bcf86cd799439011"
           deletedAt:
             type: string
             format: date-time
+            example: "2026-10-30T14:52:00.000Z"
             
     userTyping:
-      name: user-typing
+      name: userTyping
       title: User Typing Status
       summary: User typing indicator update
       payload:
@@ -295,19 +324,22 @@ components:
         properties:
           conversationId:
             type: string
+            example: "507f1f77bcf86cd799439011"
           userId:
             type: string
             description: User who is typing
+            example: "507f1f77bcf86cd799439013"
           isTyping:
             type: boolean
             description: true when started, false when stopped
+            example: true
           timestamp:
             type: number
             description: Unix timestamp
-            example: 1705747200000
+            example: 1793371800000
             
     userStatusChanged:
-      name: user-status-changed
+      name: userStatusChanged
       title: User Status Changed
       summary: User went online/offline
       payload:
@@ -315,14 +347,18 @@ components:
         properties:
           userId:
             type: string
+            example: "507f1f77bcf86cd799439013"
           status:
             type: string
             enum: [ONLINE, OFFLINE, AWAY]
+            example: ONLINE
           timestamp:
             type: number
+            example: 1793371800000
           lastSeen:
             type: number
             description: Only present when going offline
+            example: 1793371795000
             
     joinedMultiple:
       name: joinedMultiple
@@ -338,9 +374,11 @@ components:
               properties:
                 conversationId:
                   type: string
+                  example: "507f1f77bcf86cd799439011"
                 status:
                   type: string
                   enum: [joined, denied]
+                  example: joined
                   
     error:
       name: error
