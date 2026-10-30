@@ -8,7 +8,7 @@ import authRoutes from "./routes/auth";
 import conversationRoutes from "./routes/conversation";
 import messageRoutes from "./routes/message";
 import userRoutes from "./routes/user";
-
+import compression from "compression";
 import { errorHandler } from "./middleware/error";
 
 dotenv.config();
@@ -16,6 +16,7 @@ dotenv.config();
 const app = express();
 app.set('trust proxy', 1);
 
+app.use(compression());
 const allowedOrigins = process.env.ALLOWED_ORIGINS?.split(',') || [
   'http://localhost:3000',
 ];

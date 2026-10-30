@@ -7,7 +7,8 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "docs:socket": "cross-env PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs --force-write -p singleFile=true","loadtest": "node loadtest/run.js"
+    "docs:socket": "cross-env PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs --force-write -p singleFile=true",
+    "loadtest": "node loadtest/run.js"
   },
   "author": "",
   "license": "ISC",
@@ -27,6 +28,7 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "bcrypt": "^6.0.0",
+    "compression": "^1.8.2",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -41,6 +43,7 @@
     "typescript": "^5.9.3"
   },
   "devDependencies": {
+    "@types/compression": "^1.8.1",
     "@types/jest": "^30.0.0",
     "@types/supertest": "^7.2.1",
     "cross-env": "^10.1.0",
