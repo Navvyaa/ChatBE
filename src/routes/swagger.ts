@@ -414,3 +414,87 @@
  *       404:
  *         description: Conversation not found
  */
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   patch:
+ *     tags: [Messages]
+ *     summary: Edit a sent message
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the message to edit
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - content
+ *             properties:
+ *               content:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Message edited
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Message'
+ *       400:
+ *         description: Invalid message ID or content
+ *       403:
+ *         description: Only the sender can edit the message
+ *       404:
+ *         description: Message not found
+ *       409:
+ *         description: Deleted messages cannot be edited
+ */
+
+/**
+ * @swagger
+ * /api/messages/{messageId}:
+ *   delete:
+ *     tags: [Messages]
+ *     summary: Delete a sent message
+ *     description: Soft-deletes a message by clearing its content and retaining its record.
+ *     parameters:
+ *       - in: path
+ *         name: messageId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID of the message to delete
+ *     responses:
+ *       200:
+ *         description: Message deleted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               required:
+ *                 - _id
+ *                 - deleted
+ *               properties:
+ *                 _id:
+ *                   type: string
+ *                   example: 507f1f77bcf86cd799439011
+ *                 deleted:
+ *                   type: boolean
+ *                   example: true
+ *                 deletedAt:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *       400:
+ *         description: Invalid message ID
+ *       403:
+ *         description: Only the sender can delete the message
+ *       404:
+ *         description: Message not found
+ */

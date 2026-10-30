@@ -7,8 +7,7 @@
     "dev": "nodemon src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "generate:socket-docs": "asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs",
-    "loadtest": "node loadtest/run.js"
+    "docs:socket": "cross-env PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npx -p @asyncapi/cli asyncapi generate fromTemplate asyncapi.yaml @asyncapi/html-template -o public/socket-docs --force-write -p singleFile=true","loadtest": "node loadtest/run.js"
   },
   "author": "",
   "license": "ISC",
@@ -44,6 +43,7 @@
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "@types/supertest": "^7.2.1",
+    "cross-env": "^10.1.0",
     "jest": "^30.5.2",
     "mongodb-memory-server": "^11.3.0",
     "nodemon": "^3.1.11",

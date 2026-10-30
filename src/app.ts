@@ -8,7 +8,6 @@ import authRoutes from "./routes/auth";
 import conversationRoutes from "./routes/conversation";
 import messageRoutes from "./routes/message";
 import userRoutes from "./routes/user";
-import asyncapiRoutes from "./routes/asyncapi";
 
 import { errorHandler } from "./middleware/error";
 
@@ -86,7 +85,6 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
   customSiteTitle: "Chat API Documentation"
 }));
 
-app.use("/socket-docs", asyncapiRoutes);
 
 app.use("/api/auth", authLimiter, authRoutes);
 app.use("/api/conversations", conversationRoutes);

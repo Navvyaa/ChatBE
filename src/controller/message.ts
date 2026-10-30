@@ -131,3 +131,111 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+const findOwnMessage =async (req:AuthRequest,res:Response)=>{
+  try {
+    const {messageId}=req.params;
+  if(!mongoose.isValidObjectId(messageId)){
+    res.status(400).json({message:"Invalid message id"});
+    return null;
+  }
+  const message=await Message.findById(messageId);
+    const userId = req.user._id.toString();
+    const isSender = !!message && String(message.sender) === userId;
+    const isReceiver = !!message && String(message.receiver) === userId;
+    if (!message || (!isSender && !isReceiver)) {
+    res.status(404).json({ message: "Message not found" });
+    return null;
+  }
+  if (!isSender) {
+    res.status(403).json({ message: "Only the sender can modify this message" });
+    return null;
+  }
+  return message;
+  } catch (err) {
+    console.log(err);
+    res.status(500).json({ message: "Server error" });
+  } 
+
+}
+
+const notifyParticipants = (
+  message: { sender: unknown; receiver: unknown },
+  event: string,
+  payload: object
+) => {
+  getIO()
+    .to([String(message.sender), String(message.receiver)])
+    .emit(event, payload);
+};
+
+
+export const editMessage = async (req: AuthRequest, res: Response) => {
+  try {
+    const message = await findOwnMessage(req, res);
+    if (!message) return;
+ 
+    const content = req.body?.content; // req.body can be undefined in Express 5
+    if (typeof content !== "string" || !content.trim()) {
+      return res.status(400).json({ message: "Content is required" });
+    }
+    if (message.deleted) {
+      return res.status(409).json({ message: "Deleted messages cannot be edited" });
+    }
+ 
+    message.content = content;
+    message.edited = true;
+    message.editedAt = new Date();
+    await message.save();
+ 
+    notifyParticipants(message, "message-edited", {
+      messageId: message._id,
+      conversationId: message.conversation,
+      content: message.content,
+      editedAt: message.editedAt,
+    });
+ 
+    return res.json(message);
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+
+export const deleteMessage = async (req: AuthRequest, res: Response) => {
+  try {
+    const message = await findOwnMessage(req, res);
+    if (!message) return;
+ 
+    // Soft delete: keep the row (pagination and receipts stay consistent) but
+    // wipe the text so it can never be fetched again. The filter makes this
+    // idempotent and ensures the event is only sent by the request that
+    // actually performed the delete.
+    const deletedAt = new Date();
+    const result = await Message.updateOne(
+      { _id: message._id, deleted: { $ne: true } },
+      { $set: { deleted: true, deletedAt, content: "" } }
+    );
+    const didDelete = result.modifiedCount === 1;
+ 
+    if (didDelete) {
+      notifyParticipants(message, "message-deleted", {
+        messageId: message._id,
+        conversationId: message.conversation,
+        deletedAt,
+      });
+    }
+ 
+    return res.json({
+      _id: message._id,
+      deleted: true,
+      deletedAt: didDelete ? deletedAt : message.deletedAt,
+    });
+  } catch (err) {
+    console.log(err);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
